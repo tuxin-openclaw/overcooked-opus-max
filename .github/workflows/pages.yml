@@ -1,0 +1,58 @@
+# Pull requests: test and build. Pushes to main: test, build, then publish to GitHub Pages.
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+  # A running deployment of main finishes; a stale pull request build is replaced.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read # configure-pages reads the site's base path
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      # Third-party action, pinned to the v6.1.1 commit. Reads the pnpm version from package.json.
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      - id: pages
+        uses: actions/configure-pages@v6
+      - run: pnpm build
+        env:
+          # "/overcooked-opus-max" + "/" for https://<user>.github.io/overcooked-opus-max/
+          BASE_PATH: ${{ steps.pages.outputs.base_path }}/
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write # create the Pages deployment
+      id-token: write # prove the deployment comes from this repository's main branch
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
