@@ -521,6 +521,15 @@ export class Game {
     return best
   }
 
+  /** Whether the act button would start chopping or washing for this chef now. */
+  canAct(chefId: number): boolean {
+    const c = this.chefs[chefId]
+    if (!c || this.phase !== 'playing' || c.held || c.working !== null || c.target === null) return false
+    const st = this.stations[c.target]
+    if (st.kind === 'board') return !!st.item && st.item.type === 'ingredient' && !st.item.chopped
+    return st.kind === 'sink' && st.dirty > 0
+  }
+
   // -------------------------------------------------------- interactions
 
   private pick(c: Chef, st: Station | null) {
@@ -557,7 +566,7 @@ export class Game {
           c.held = null
           return this.touched(st, 'drop')
         }
-        if (!held) return st.dirty > 0 ? this.hint(c, st, '按 E 洗盘子') : undefined
+        if (!held) return st.dirty > 0 ? this.hint(c, st, '按「切/洗」洗盘子') : undefined
         return this.hint(c, st, '水槽只收脏盘子')
 
       case 'rack':

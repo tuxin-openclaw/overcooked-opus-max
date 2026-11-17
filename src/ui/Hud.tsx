@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
+import { sfx } from '../audio/sfx.ts'
 import { INGREDIENT_NAMES, RECIPES } from '../game/recipes.ts'
 import type { RecipeId } from '../game/types.ts'
 import type { Mode } from '../input/controls.ts'
 import { dishUrl, iconUrl } from '../scene/textures.ts'
 import { useApp } from '../state/store.ts'
+import { canFullscreen, enterFullscreen } from './layout.ts'
+import { TouchControls } from './TouchControls.tsx'
 
 /** Mouse clicks must not leave focus on HUD buttons, or Space would press them. */
 const noFocus = (e: MouseEvent) => e.preventDefault()
@@ -11,15 +14,28 @@ const noFocus = (e: MouseEvent) => e.preventDefault()
 export function Hud() {
   const mode = useApp((s) => s.mode)
   const paused = useApp((s) => s.paused)
+  const touch = useApp((s) => s.touch)
   return (
-    <div className="hud">
+    <div className={`hud${touch ? ' touch' : ''}`}>
       <Orders />
-      <TopButtons />
-      <Score />
-      <Timer />
+      {touch ? (
+        // With touch, the bottom corners belong to the joystick and the buttons.
+        <div className="hud-bar">
+          <Score />
+          <Timer />
+          <TopButtons />
+        </div>
+      ) : (
+        <>
+          <TopButtons />
+          <Score />
+          <Timer />
+          <KeyBar mode={mode} />
+        </>
+      )}
       <Countdown />
-      <KeyBar mode={mode} />
-      {paused && <PauseMenu />}
+      {touch && <TouchControls mode={mode} />}
+      {paused && <PauseMenu touch={touch} />}
     </div>
   )
 }
@@ -51,9 +67,11 @@ function Orders() {
   }
   return (
     <div className="orders">
-      {slots.map((s) => (
-        <Ticket key={s.key} recipe={s.recipe} frac={s.frac} state={s.state} />
-      ))}
+      <div className="orders-row">
+        {slots.map((s) => (
+          <Ticket key={s.key} recipe={s.recipe} frac={s.frac} state={s.state} />
+        ))}
+      </div>
     </div>
   )
 }
@@ -163,12 +181,12 @@ function KeyBar({ mode }: { mode: Mode }) {
   }
   return (
     <div className="keybar">
-      <kbd>WASD</kbd>移动<kbd>空格</kbd>拿/放<kbd>E</kbd>切菜/洗碗<kbd>Shift</kbd>冲刺<kbd>Tab</kbd>换厨师<kbd>Esc</kbd>暂停
+      <kbd>WASD</kbd>移动<kbd>空格</kbd>拿/放<kbd>E</kbd>切/洗<kbd>Shift</kbd>冲刺<kbd>Tab</kbd>换厨师<kbd>Esc</kbd>暂停
     </div>
   )
 }
 
-function PauseMenu() {
+function PauseMenu({ touch }: { touch: boolean }) {
   const setPaused = useApp((s) => s.setPaused)
   const start = useApp((s) => s.start)
   const toMenu = useApp((s) => s.toMenu)
@@ -178,7 +196,15 @@ function PauseMenu() {
     <div className="overlay">
       <div className="card menu">
         <h2>暂停</h2>
-        <button className="btn primary" autoFocus onClick={() => setPaused(false)}>
+        <button
+          className="btn primary"
+          autoFocus
+          onClick={() => {
+            // Coming back from another app can leave the sound switched off.
+            sfx.unlock()
+            setPaused(false)
+          }}
+        >
           继续
         </button>
         <button className="btn" onClick={() => start()}>
@@ -187,10 +213,15 @@ function PauseMenu() {
         <button className="btn" onClick={toggleMute}>
           {muted ? '打开声音' : '关闭声音'}
         </button>
+        {canFullscreen() && (
+          <button className="btn" onClick={() => enterFullscreen()}>
+            全屏
+          </button>
+        )}
         <button className="btn" onClick={toMenu}>
           回到菜单
         </button>
-        <p className="card-note">按 Esc 继续</p>
+        {!touch && <p className="card-note">按 Esc 继续</p>}
       </div>
     </div>
   )

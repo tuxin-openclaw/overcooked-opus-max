@@ -1,4 +1,5 @@
 import type { PlayerInput } from '../game/types.ts'
+import { touchPad } from './touch.ts'
 
 export type Mode = 'solo' | 'duo'
 
@@ -43,6 +44,9 @@ export const P2_KEYS: Binding = {
   dash: ['Slash'],
 }
 
+/** Player 1's keys in duo mode. One of these pressed means player 1 is on the keyboard. */
+export const P1_CODES: ReadonlySet<string> = new Set(Object.values(P1_KEYS).flat())
+
 const PAUSE_KEYS = ['Escape', 'KeyP']
 
 const BLOCK_DEFAULT = new Set([
@@ -61,22 +65,35 @@ const BLOCK_DEFAULT = new Set([
 // Standard gamepad layout.
 const PAD = { a: 0, b: 1, x: 2, y: 3, lb: 4, rb: 5, rt: 7, start: 9, up: 12, down: 13, left: 14, right: 15 }
 
+/** Where gamepads come from. Tests pass fakes. */
+export type PadSource = () => readonly (Gamepad | null)[]
+
+const browserPads: PadSource = () =>
+  typeof navigator !== 'undefined' && typeof navigator.getGamepads === 'function' ? navigator.getGamepads() : []
+
 export interface Poll {
   inputs: PlayerInput[]
   swap: boolean
   pause: boolean
 }
 
-/** Keyboard + gamepad state with per-frame edge detection. */
+/** Keyboard, gamepad and touch state, with per-frame edge detection. */
 export class Controls {
   /**
    * True while a round is live. Otherwise only the pause keys are read and
    * every key keeps its normal browser job, so menus work by keyboard.
    */
   capture = false
+  /** Gamepads used since the runner last looked, by position in connection order. */
+  readonly padsUsed = new Set<number>()
+  private readonly source: PadSource
   private down = new Set<string>()
   private hits = new Set<string>()
   private padPrev = new Map<number, boolean[]>()
+
+  constructor(source: PadSource = browserPads) {
+    this.source = source
+  }
 
   private onKeyDown = (e: KeyboardEvent) => {
     if (!this.capture) {
@@ -94,6 +111,7 @@ export class Controls {
 
   private onBlur = () => {
     this.down.clear()
+    touchPad.reset()
   }
 
   attach() {
@@ -108,23 +126,37 @@ export class Controls {
     window.removeEventListener('blur', this.onBlur)
     this.down.clear()
     this.hits.clear()
+    touchPad.reset()
   }
 
   poll(mode: Mode): Poll {
     const pads = this.readPads()
     const pause = PAUSE_KEYS.some((k) => this.hits.has(k)) || pads.some((p) => p.start)
+    // Read every touch press each frame, used or not, so none goes stale.
+    const touch = {
+      mx: touchPad.mx,
+      mz: touchPad.mz,
+      pick: touchPad.take('pick'),
+      act: touchPad.take('act'),
+      dash: touchPad.take('dash'),
+      swap: touchPad.take('swap'),
+    }
     let inputs: PlayerInput[]
     let swap = false
     if (mode === 'solo') {
       const one = this.fromKeys(SOLO_KEYS)
       for (const p of pads) merge(one, p)
-      swap = SOLO_KEYS.swap.some((k) => this.hits.has(k)) || pads.some((p) => p.swap)
+      merge(one, touch)
+      swap = SOLO_KEYS.swap.some((k) => this.hits.has(k)) || pads.some((p) => p.swap) || touch.swap
       inputs = [one]
     } else {
       const a = this.fromKeys(P1_KEYS)
       const b = this.fromKeys(P2_KEYS)
-      if (pads[0]) merge(a, pads[0])
-      if (pads[1]) merge(b, pads[1])
+      // Player 1 has the left of the keyboard or the touch controls, so the first
+      // gamepad goes to player 2. A second gamepad goes to player 1.
+      if (pads[0]) merge(b, pads[0])
+      if (pads[1]) merge(a, pads[1])
+      merge(a, touch)
       inputs = [a, b]
     }
     this.hits.clear()
@@ -145,8 +177,7 @@ export class Controls {
 
   private readPads() {
     const out: (PlayerInput & { swap: boolean; start: boolean })[] = []
-    const list = typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads() : []
-    for (const gp of list) {
+    for (const gp of this.source()) {
       if (!gp || !gp.connected) continue
       const now = gp.buttons.map((b) => b.pressed)
       const prev = this.padPrev.get(gp.index) ?? []
@@ -160,6 +191,7 @@ export class Controls {
       if (held(PAD.right)) mx = 1
       if (held(PAD.up)) mz = -1
       if (held(PAD.down)) mz = 1
+      if (mx || mz || now.some((p, i) => p && !prev[i])) this.padsUsed.add(out.length)
       out.push({
         mx,
         mz,

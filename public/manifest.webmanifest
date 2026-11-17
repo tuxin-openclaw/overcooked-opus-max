@@ -1,0 +1,13 @@
+{
+  "name": "手忙脚乱厨房",
+  "short_name": "手忙脚乱厨房",
+  "description": "仿胡闹厨房的 3D 合作做饭游戏",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#6fa64f",
+  "theme_color": "#6fa64f",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

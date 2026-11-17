@@ -64,7 +64,8 @@ export function Runner({ game, ctl }: { game: Game; ctl: Ctl }) {
   }, [controls, game])
 
   const pushHud = () => {
-    useApp.getState().setHud({
+    const app = useApp.getState()
+    app.setHud({
       phase: game.phase,
       countdown: game.countdown,
       timeLeft: game.timeLeft,
@@ -72,6 +73,8 @@ export function Runner({ game, ctl }: { game: Game; ctl: Ctl }) {
       score: game.score,
       orders: game.orders.map((o) => ({ id: o.id, recipe: o.recipe, frac: o.time / o.total })),
       active: ctl.active,
+      // The touch layout lights up the act button when it would do something.
+      canAct: game.canAct(app.mode === 'solo' ? ctl.active : 0),
     })
   }
 
@@ -145,6 +148,13 @@ export function Runner({ game, ctl }: { game: Game; ctl: Ctl }) {
     const live = app.screen === 'game'
     controls.capture = live && !app.paused && game.phase !== 'ended'
     const poll = controls.poll(app.mode)
+    if (controls.padsUsed.size) {
+      // A gamepad is in use. Solo: the on-screen buttons are in the way now. Duo: they belong
+      // to player 1, so only player 1's gamepad (the second one) puts them away.
+      const mine = app.mode === 'solo' || controls.padsUsed.has(1)
+      controls.padsUsed.clear()
+      if (mine && app.touch) app.setTouch(false)
+    }
     if (!live) return
     if (poll.pause && (game.phase === 'playing' || game.phase === 'countdown')) {
       app.setPaused(!app.paused)
