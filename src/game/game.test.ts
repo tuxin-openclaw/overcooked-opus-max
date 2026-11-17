@@ -192,3 +192,21 @@ test('orders expire with a penalty, and the level ends', () => {
   advance(g, CFG.timeUpHold + 0.2, [idle])
   assert.equal(g.phase, 'ended')
 })
+
+test('canAct is true only when chopping or washing would start', () => {
+  const g = started()
+  const board = find(g, 'board')
+  standAt(g, board)
+  assert.equal(g.canAct(0), false, 'empty board')
+  board.item = { type: 'ingredient', id: 9100, kind: 'onion', chopped: false, chop: 0 }
+  assert.equal(g.canAct(0), true, 'raw onion on the board')
+  g.chefs[0].held = { type: 'ingredient', id: 9101, kind: 'tomato', chopped: false, chop: 0 }
+  assert.equal(g.canAct(0), false, 'hands are full')
+  g.chefs[0].held = null
+  use(g, board, 'act')
+  assert.equal(g.canAct(0), false, 'already chopping')
+  const sink = find(g, 'sink')
+  sink.dirty = 1
+  standAt(g, sink)
+  assert.equal(g.canAct(0), true, 'dirty plate in the sink')
+})

@@ -19,6 +19,8 @@ export interface Hud {
   score: number
   orders: HudOrder[]
   active: number
+  /** The act button would chop or wash right now. */
+  canAct: boolean
 }
 
 export interface Results {
@@ -55,6 +57,8 @@ interface AppState {
   runId: number
   paused: boolean
   muted: boolean
+  /** Show the on-screen touch controls. */
+  touch: boolean
   hud: Hud
   results: Results | null
   popups: Popup[]
@@ -66,6 +70,7 @@ interface AppState {
   toMenu: () => void
   setPaused: (p: boolean) => void
   toggleMute: () => void
+  setTouch: (t: boolean) => void
   setHud: (h: Hud) => void
   finish: (r: Omit<Results, 'best' | 'newBest'>) => void
   addPopup: (p: Omit<Popup, 'id'>) => void
@@ -82,7 +87,19 @@ export function loadBest(): Record<number, number> {
   }
 }
 
-const emptyHud: Hud = { phase: 'countdown', countdown: 3, timeLeft: 0, duration: 1, score: 0, orders: [], active: 0 }
+/** Phones and tablets start with touch controls; a mouse-first device starts without. */
+const coarsePointer = () => typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches
+
+const emptyHud: Hud = {
+  phase: 'countdown',
+  countdown: 3,
+  timeLeft: 0,
+  duration: 1,
+  score: 0,
+  orders: [],
+  active: 0,
+  canAct: false,
+}
 let popupId = 1
 
 export const useApp = create<AppState>((set, get) => ({
@@ -92,6 +109,7 @@ export const useApp = create<AppState>((set, get) => ({
   runId: 0,
   paused: false,
   muted: sfx.muted,
+  touch: coarsePointer(),
   hud: emptyHud,
   results: null,
   popups: [],
@@ -121,6 +139,9 @@ export const useApp = create<AppState>((set, get) => ({
     sfx.setMuted(muted)
     set({ muted })
   },
+
+  // Returning the same state object skips the re-render when nothing changed.
+  setTouch: (touch) => set((s) => (s.touch === touch ? s : { touch })),
 
   setHud: (hud) => set({ hud }),
 

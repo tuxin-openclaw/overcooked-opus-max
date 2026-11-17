@@ -33,6 +33,12 @@ body {
   user-select: none;
   -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
+  /* Phones: no long-press menu, no double-tap zoom, no pull-to-refresh, no font boosting. */
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 button {
@@ -145,9 +151,12 @@ kbd {
 
 .orders {
   position: absolute;
-  top: 14px;
-  left: 14px;
+  top: calc(14px + env(safe-area-inset-top));
+  left: calc(14px + env(safe-area-inset-left));
   right: 140px;
+}
+
+.orders-row {
   display: flex;
   gap: 10px;
   align-items: flex-start;
@@ -312,8 +321,11 @@ kbd {
   cursor: pointer;
 }
 
-.icon-btn:hover {
-  transform: translateY(-1px);
+/* Hover only where there is a mouse. On phones a tap would leave it stuck on. */
+@media (hover: hover) {
+  .icon-btn:hover {
+    transform: translateY(-1px);
+  }
 }
 
 .icon-btn:active {
@@ -529,9 +541,10 @@ kbd {
 .overlay {
   position: absolute;
   inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 20px;
+  /* Flex + margin:auto centres the card, yet still scrolls when it is taller than the screen. */
+  display: flex;
+  overflow-y: auto;
+  padding: calc(16px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
   background: rgba(28, 28, 38, 0.5);
   backdrop-filter: blur(4px);
   pointer-events: auto;
@@ -596,9 +609,11 @@ kbd {
     box-shadow 0.08s;
 }
 
-.btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 7px 0 var(--ink);
+@media (hover: hover) {
+  .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 7px 0 var(--ink);
+  }
 }
 
 .btn:active {
@@ -690,8 +705,10 @@ kbd {
   transition: transform 0.08s;
 }
 
-.level:hover {
-  transform: translateY(-2px);
+@media (hover: hover) {
+  .level:hover {
+    transform: translateY(-2px);
+  }
 }
 
 .level.on {
@@ -885,4 +902,541 @@ kbd {
 .row .btn {
   margin: 12px 0 4px;
   font-size: 18px;
+}
+
+.overlay > .card {
+  margin: auto;
+}
+
+/* ---------------------------------------------------------------- touch */
+
+.stage {
+  touch-action: none;
+}
+
+.title,
+.overlay {
+  touch-action: pan-y;
+}
+
+.rotate-hint {
+  display: none;
+  margin: 8px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: center;
+  color: #fff;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.45);
+}
+
+.howto b {
+  padding: 0 6px;
+  color: var(--ink);
+  background: #fff;
+  border-radius: 6px;
+}
+
+/* Touch HUD: score, clock and buttons in one row at the top right. */
+.hud-bar {
+  position: absolute;
+  top: calc(14px + env(safe-area-inset-top));
+  right: calc(14px + env(safe-area-inset-right));
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hud-bar .pill,
+.hud-bar .top-buttons {
+  position: static;
+}
+
+.hud-bar .pill {
+  height: 52px;
+  padding: 0 16px 0 6px;
+  font-size: 26px;
+}
+
+.hud-bar .coin,
+.hud-bar .clock {
+  width: 36px;
+  height: 36px;
+}
+
+.hud-bar .coin {
+  font-size: 19px;
+}
+
+.touch-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  -webkit-touch-callout: none;
+}
+
+/* The whole left half takes the joystick: it appears under the thumb. */
+.joy-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 50%;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.joy {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: calc(var(--r, 52px) * 2);
+  height: calc(var(--r, 52px) * 2);
+  background: rgba(43, 43, 51, 0.3);
+  border: 3px solid rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.18);
+  opacity: 0.55;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  will-change: transform;
+}
+
+.joy.on {
+  opacity: 1;
+  transition: none;
+}
+
+.joy-knob {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(var(--r, 52px) * 0.92);
+  height: calc(var(--r, 52px) * 0.92);
+  margin: calc(var(--r, 52px) * -0.46);
+  background: radial-gradient(circle at 35% 30%, #fff, #e6dfd2);
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.3);
+  will-change: transform;
+}
+
+/* Phone sizes below. Tablets zoom the whole cluster up (see the compact rule). */
+.pad {
+  position: absolute;
+  right: calc(14px + env(safe-area-inset-right));
+  bottom: calc(14px + env(safe-area-inset-bottom));
+  width: 140px;
+  height: 142px;
+  zoom: 1.28;
+  pointer-events: none;
+}
+
+.pb {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+  border: 3px solid rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.32);
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  transition:
+    transform 0.06s,
+    box-shadow 0.06s,
+    filter 0.06s;
+}
+
+.pb.down {
+  filter: brightness(1.18);
+  transform: translateY(3px) scale(0.93);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.32);
+}
+
+.pb-pick {
+  right: 0;
+  bottom: 0;
+  width: 74px;
+  height: 74px;
+  font-size: 18px;
+  background: rgba(232, 72, 58, 0.9);
+}
+
+.pb-act {
+  right: 67px;
+  bottom: 63px;
+  width: 58px;
+  height: 58px;
+  font-size: 15px;
+  background: rgba(61, 127, 224, 0.9);
+}
+
+.pb-dash {
+  right: 86px;
+  bottom: 0;
+  width: 52px;
+  height: 52px;
+  font-size: 14px;
+  background: rgba(43, 43, 51, 0.78);
+}
+
+.pb-swap {
+  right: 10px;
+  bottom: 96px;
+  width: 44px;
+  height: 44px;
+  font-size: 13px;
+  background: rgba(43, 43, 51, 0.78);
+}
+
+/* The act button glows when it would chop or wash right now. */
+.pb-act.glow {
+  animation: glow 0.9s ease-in-out infinite;
+}
+
+@keyframes glow {
+  0%,
+  100% {
+    box-shadow:
+      0 5px 0 rgba(0, 0, 0, 0.32),
+      0 0 0 3px var(--gold);
+  }
+  50% {
+    box-shadow:
+      0 5px 0 rgba(0, 0, 0, 0.32),
+      0 0 0 8px rgba(245, 196, 67, 0.55);
+  }
+}
+
+@media (orientation: portrait) {
+  .rotate-hint {
+    display: block;
+  }
+
+  /* Portrait: the score bar spans the top, the tickets sit under it. */
+  .hud.touch .hud-bar {
+    left: calc(14px + env(safe-area-inset-left));
+  }
+
+  .hud.touch .hud-bar .top-buttons {
+    margin-left: auto;
+  }
+
+  .hud.touch .orders {
+    top: calc(76px + env(safe-area-inset-top));
+  }
+}
+
+/* ------------------------------------------------- phones (compact HUD) */
+/* Same rule as isCompact() in src/ui/layout.ts. */
+
+@media (max-height: 540px), (max-width: 760px) {
+  .orders {
+    top: calc(6px + env(safe-area-inset-top));
+    left: calc(8px + env(safe-area-inset-left));
+    right: auto;
+  }
+
+  .orders-row {
+    zoom: 0.56;
+  }
+
+  .ticket-name {
+    display: none;
+  }
+
+  .top-buttons {
+    top: calc(8px + env(safe-area-inset-top));
+    right: calc(8px + env(safe-area-inset-right));
+    gap: 6px;
+  }
+
+  .icon-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 15px;
+    border-width: 2px;
+  }
+
+  .pill,
+  .hud-bar .pill {
+    height: 40px;
+    padding: 0 12px 0 5px;
+    gap: 6px;
+    font-size: 20px;
+    border-width: 2px;
+  }
+
+  .score {
+    left: calc(10px + env(safe-area-inset-left));
+    bottom: calc(10px + env(safe-area-inset-bottom));
+  }
+
+  .timer {
+    right: calc(10px + env(safe-area-inset-right));
+    bottom: calc(10px + env(safe-area-inset-bottom));
+  }
+
+  .coin,
+  .clock,
+  .hud-bar .coin,
+  .hud-bar .clock {
+    width: 28px;
+    height: 28px;
+    border-width: 2px;
+  }
+
+  .coin,
+  .hud-bar .coin {
+    font-size: 15px;
+  }
+
+  .hud-bar {
+    top: calc(8px + env(safe-area-inset-top));
+    right: calc(8px + env(safe-area-inset-right));
+    gap: 6px;
+  }
+
+  .pad {
+    zoom: 1;
+  }
+
+  /* The big outline and drop shadow swamp small letters. */
+  .logo {
+    text-shadow: var(--outline);
+  }
+
+  .popup-score {
+    font-size: 26px;
+  }
+
+  .popup-score small {
+    font-size: 13px;
+  }
+
+  .popup-hint {
+    padding: 4px 10px;
+    font-size: 13px;
+    border-width: 2px;
+  }
+}
+
+@media (max-width: 760px) and (orientation: portrait), (max-height: 540px) and (orientation: portrait) {
+  .hud.touch .hud-bar {
+    left: calc(8px + env(safe-area-inset-left));
+  }
+
+  .hud.touch .orders {
+    top: calc(56px + env(safe-area-inset-top));
+  }
+}
+
+/* Phones held sideways: little height, so menus and cards shrink. */
+@media (max-height: 540px) {
+  .title {
+    align-items: flex-start;
+    padding: calc(10px + env(safe-area-inset-top)) 16px calc(10px + env(safe-area-inset-bottom))
+      calc(16px + env(safe-area-inset-left));
+  }
+
+  .title-panel {
+    width: min(400px, 54vw);
+  }
+
+  .logo {
+    display: flex;
+    gap: 0.3em;
+    font-size: 34px;
+  }
+
+  .logo span:last-child {
+    margin-left: 0;
+    font-size: 1em;
+  }
+
+  .tagline {
+    margin: 8px 0 10px;
+    font-size: 13px;
+  }
+
+  .levels {
+    gap: 6px;
+  }
+
+  .level {
+    padding: 6px 12px;
+    border-radius: 14px;
+    box-shadow: 0 3px 0 var(--ink);
+  }
+
+  .level.on {
+    box-shadow:
+      0 3px 0 var(--ink),
+      0 0 0 3px var(--gold);
+  }
+
+  .level-text b {
+    font-size: 16px;
+  }
+
+  .level-text small,
+  .level-best small {
+    font-size: 11px;
+  }
+
+  .mini-stars i {
+    font-size: 15px;
+  }
+
+  .modes {
+    gap: 8px;
+    margin: 8px 0 2px;
+  }
+
+  .modes button {
+    padding: 4px 8px;
+    border-radius: 12px;
+    box-shadow: 0 3px 0 var(--ink);
+  }
+
+  .modes button b {
+    font-size: 15px;
+  }
+
+  .modes button small {
+    font-size: 10px;
+  }
+
+  .btn.big {
+    margin: 8px 0 0;
+    padding: 8px 16px;
+    font-size: 20px;
+  }
+
+  .rotate-hint {
+    margin-top: 4px;
+    font-size: 12px;
+  }
+
+  .overlay {
+    padding: calc(8px + env(safe-area-inset-top)) 8px calc(8px + env(safe-area-inset-bottom));
+  }
+
+  .card {
+    min-width: 0;
+    padding: 12px 20px 10px;
+    border-radius: 20px;
+  }
+
+  .card h2 {
+    margin-bottom: 4px;
+    font-size: 22px;
+  }
+
+  .card.menu {
+    width: 280px;
+  }
+
+  .btn {
+    margin: 6px 0;
+    padding: 7px 14px;
+    font-size: 17px;
+    box-shadow: 0 4px 0 var(--ink);
+  }
+
+  .card-note {
+    display: none;
+  }
+
+  .stars-big {
+    margin: 0;
+  }
+
+  .star {
+    width: 64px;
+  }
+
+  .star span {
+    font-size: 46px;
+  }
+
+  .star:nth-child(2) span {
+    font-size: 58px;
+  }
+
+  .star small {
+    font-size: 11px;
+  }
+
+  .final {
+    font-size: 38px;
+  }
+
+  .final small {
+    font-size: 16px;
+  }
+
+  .newbest {
+    margin: 2px 0;
+    padding: 1px 10px;
+    font-size: 13px;
+  }
+
+  .tally {
+    gap: 2px 14px;
+    margin: 8px 0 2px;
+    padding: 6px 12px;
+  }
+
+  .tally li {
+    font-size: 14px;
+  }
+
+  .row .btn {
+    margin: 8px 0 2px;
+    font-size: 16px;
+  }
+}
+
+/* Phones held upright: the menu covers the kitchen, so it gets a darker backdrop. */
+@media (max-width: 760px) and (orientation: portrait) {
+  .title {
+    align-items: flex-start;
+    padding: calc(20px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
+    background: linear-gradient(rgba(24, 26, 36, 0.6), rgba(24, 26, 36, 0.35));
+  }
+
+  .title-panel {
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  .logo {
+    font-size: 50px;
+  }
+
+  .tagline {
+    font-size: 16px;
+  }
+}
+
+/* Narrow phones held upright: cards use the full width, result buttons wrap. */
+@media (max-width: 520px) {
+  .card {
+    min-width: 0;
+    padding: 20px 18px 16px;
+  }
+
+  .row {
+    flex-wrap: wrap;
+  }
+
+  .row .btn {
+    flex: 1 1 40%;
+  }
 }

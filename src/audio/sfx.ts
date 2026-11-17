@@ -45,7 +45,8 @@ class Sfx {
       const data = this.noiseBuf.getChannelData(0)
       for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1
     }
-    if (this.ctx.state === 'suspended') void this.ctx.resume()
+    // iOS can leave it 'interrupted' after a call or an app switch, not just 'suspended'.
+    if (this.ctx.state !== 'running') void this.ctx.resume().catch(() => {})
   }
 
   setMuted(m: boolean) {
